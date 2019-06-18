@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="cz" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Brigáda</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <div id="app">
+            <div class="container">
+                <div class="col">
+                    <br>
+                    <form @submit.prevent="sendNewHero">
+                        <div class="form-group">
+                            <label for="name">Jméno hrdiny</label>
+                            <input type="text" v-model="name" class="form-control" id="name" placeholder="Zadejte jméno hrdiny" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastname">Příjmení hrdiny</label>
+                            <input type="text" v-model="lastname" class="form-control" id="lastname" placeholder="Zadejte příjmení hrdiny" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="date">Datum narození hrdiny</label>
+                            <input type="date" v-model="date" class="form-control" id="date" placeholder="dd. mm. rrrr" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="power">Superschopnost hrdiny</label>
+                            <input type="text" v-model="power" class="form-control" id="power" placeholder="Zadejte schopnost hrdiny" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                    <br>
+                    <form @submit.prevent="update" id="update"></form>
+                    <table class="table table-striped table-dark">
+                        <thead>
+                            <tr>
+                                <th scope="col">Jméno</th>
+                                <th scope="col">Příjmení</th>
+                                <th scope="col">Datum narození</th>
+                                <th scope="col">Superschopnost</th>
+                                <th scope="col">Smazat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(hero, index) in heroes" :hero="hero">
+                                <td>
+                                    <input type="text" @change="updateHero(index)" v-model="heroes[index].name" form="update" title="Vámi provedené změny se automaticky projeví po odkliknutí (zrušení focusu) tohoto okna">
+                                </td>
+                                <td>
+                                    <input type="text" @change="updateHero(index)" v-model="heroes[index].lastname" form="update" title="Vámi provedené změny se automaticky projeví po odkliknutí (zrušení focusu) tohoto okna">
+                                </td>
+                                <td>
+                                    <input type="text" @change="updateHero(index)" v-model="heroes[index].date" form="update" title="Vámi provedené změny se automaticky projeví po odkliknutí (zrušení focusu) tohoto okna">
+                                </td>
+                                <td>
+                                    <input type="text" @change="updateHero(index)" v-model="heroes[index].power" form="update" title="Vámi provedené změny se automaticky projeví po odkliknutí (zrušení focusu) tohoto okna">
+                                </td>
+                                <td>
+                                    <button type="button" v-on:click="removeHero(index)" class="btn btn-danger">X</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        </table>
+                </div>
+            </div>
+        </div>
+
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.min.js"></script>
+        <script>
+            var socket = io();
+            let app = new Vue({
+                    el: "#app",
+                    data: {
+                        name: "",
+                        lastname: "",
+                        date: "",
+                        power: "",
+                        newHero: {
+                            name: this.name,
+                            lastname: this.lastname,
+                            date: this.date,
+                            power: this.power
+                        },
+                        heroes: [{
+                            name: "Jméno",
+                            lastname: "Příjmení",
+                            date: "18. 06. 2019",
+                            power: "žádná"
+                        }]
+                    },
+                    methods: {
+                        /**
+                            \brief Client sends new hero to server
+                        */
+                        sendNewHero() {
+                            this.newHero.name = this.name
+                            this.newHero.lastname = this.lastname
+                            this.newHero.date = this.date
+                            this.newHero.power = this.power
+                            this.heroes.push(this.newHero)
+                            socket.emit("new-hero-ToSrv", this.newHero)
+                            this.name = ""
+                            this.lastname = ""
+                            this.date = ""
+                            this.power = ""
+                        },
+                        /**
+                            \brief Client sends hero to remove to server
+                        */
+                        removeHero: function(index) {
+                            this.heroes.splice(index, 1)
+                            socket.emit("remove-hero-ToSrv", index)
+                        },
+                        /**
+                            \brief Client sends hero to update and his index to server
+                        */
+                        updateHero: function(index) {
+                            var send = {
+                                hero: this.heroes[index],
+                                index: index
+                            }
+                            socket.emit("update-hero-ToSrv", send)
+                        }
+                    },
+                    created() {
+                        /**
+                            \brief Client get new hero from server
+                        */
+                        socket.on("new-hero-FromSrv", (data) => {
+                            this.heroes.push(data)
+                        })
+
+                        /**
+                            \brief Client removes given hero from server
+                        */
+                        socket.on("remove-hero-FromSrv", (data) => {
+                            this.heroes.splice(data, 1)
+                        })
+
+                        /**
+                            \brief Client update given hero from server
+                        */
+                        socket.on("update-hero-FromSrv", (data) => {
+                            this.heroes[data.index].name = data.hero.name
+                            this.heroes[data.index].lastname = data.hero.lastname
+                            this.heroes[data.index].date = data.hero.date
+                            this.heroes[data.index].power = data.hero.power
+                        })
+                    }
+            })
+        </script>
+    </body>
+</html>
